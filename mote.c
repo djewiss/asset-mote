@@ -1,14 +1,13 @@
 /**
- * file
- *         Oscap_mote
- * author
- *         Darryl Jewiss <darryl.jewiss@daanontek.co.nz>
- */
+* file
+* Oscap_mote
+* author
+* Darryl Jewiss <darryl.jewiss@daanontek.co.nz>
+*/
  
 /**
- * Includes
- */
- 
+* Includes
+*/
 #include "mist.h"
 #include "websocket.h"
 #include "stdio.h"
@@ -21,14 +20,13 @@
 #include "net/uip-ds6.h"
 #include "net/uip-udp-packet.h"
 #include "sys/ctimer.h"
-#include "powertrace.h"
 #include <stdio.h>
 #include <string.h>
 /*---------------------------------------------------------------------------*/
   
 /**
- * definitions
- */
+* definitions
+*/
 /* Websockets */
  
 static struct websocket s;
@@ -42,8 +40,8 @@ static struct ctimer reconnect_timer;
 /*---------------------------------------------------------------------------*/
 
 /**
- * Process declarations
- */
+* Process declarations
+*/
 PROCESS(blink_process, "Blink process");
 PROCESS(websocket_example_process, "Websocket process");
 PROCESS(sensor_input_process, "Sensor input");
@@ -51,8 +49,8 @@ AUTOSTART_PROCESSES(&websocket_example_process, &blink_process, &sensor_input_pr
 /*---------------------------------------------------------------------------*/
 
 /**
- * Initialise
- */
+* Initialise
+*/
 /* Websocket */
 static void
 reconnect_callback(void *ptr)
@@ -84,8 +82,8 @@ callback(struct websocket *s, websocket_result r,
 
 /*---------------------------------------------------------------------------*/
 /**
- * Process threads
- */ 
+* Process threads
+*/
   
  PROCESS_THREAD(websocket_example_process, ev, data)
 {
@@ -146,9 +144,11 @@ data == &button_sensor);
     active ^= 1;
     leds_toggle(LEDS_ALL);
 
+    int i;
     for(i = 0; i < RIMEADDR_SIZE - 1; i++) {
       printf("%02x:", rimeaddr_node_addr.u8[i]);
     }
+    printf("%02x\n", rimeaddr_node_addr.u8[i]);
   }
   PROCESS_END();
 }

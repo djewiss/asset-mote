@@ -36,6 +36,10 @@ static struct websocket s;
 static void callback(struct websocket *s, websocket_result r, uint8_t *data, uint16_t datalen);
 static struct ctimer reconnect_timer;
 
+/* Json string */
+
+#define MACADDR "00:12:4b:00:04:0e:f1:f2"
+
 
 /*---------------------------------------------------------------------------*/
 
@@ -72,11 +76,22 @@ callback(struct websocket *s, websocket_result r,
          printf(" Websocket- '%d'\n", r);
     ctimer_set(&reconnect_timer, RECONNECT_INTERVAL, reconnect_callback, s);
   } else if(r == WEBSOCKET_CONNECTED) {
-    websocket_send_str(s, "Connected");
-    websocket_send_str(s, "{\"TagNumberFrom\":\"00 12 4B 00 04 0E F3 88\",\"TagNumberTarget\":\"\",\"Status\":\"Started\",\"Location\":\"\",\"EquipmentSerialNumber\":\"\"}");
+    
+    char buf [100];			/* buffer for Json string */
+    
+    printf("Connected\n");
+    sprintf(buf, "\{\"TagNumberFrom\":%s,\"TagNumberTarget\":\"\",\"Status\":\"Started\",\"Location\":\"\",\"EquipmentSerialNumber\":\"\"}", MACADDR);
+
+    printf(buf);
+    websocket_send_str(s, buf);
   } else if(r == WEBSOCKET_DATA) {
     printf("websocket: Received data '%.*s' (len %d)\n", datalen,
            data, datalen);
+  } else if(r == WEBSOCKET_DATA) {
+    leds_on(LEDS_ALL);
+    printf("websocket Received data '%.*s' (len %d)\n", datalen,
+           data, datalen);
+    leds_off(LEDS_ALL);
   }
 }
 
@@ -95,7 +110,7 @@ callback(struct websocket *s, websocket_result r,
   while(1) {
     etimer_set(&et, CLOCK_SECOND * 256);
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
-    printf(&s, "connected\n");
+    printf("connected\n");
   }
 
   PROCESS_END();
@@ -122,7 +137,7 @@ all LEDs. */
         etimer_reset(&e);
         leds_toggle(LEDS_RED);
     }
-
+    leds_off(LEDS_RED);
     /* Processes must end with PROCESS_END(). */
     PROCESS_END();
 }
@@ -134,21 +149,21 @@ PROCESS_THREAD(sensor_input_process, ev, data)
   PROCESS_BEGIN();
   active = 0;
   SENSORS_ACTIVATE(button_sensor);
+  char sndTamper[200];
 
   while(1) {
     PROCESS_WAIT_EVENT_UNTIL(ev == sensors_event &&
 data == &button_sensor);
-    leds_toggle(LEDS_ALL);
+    leds_on(LEDS_ALL);
     printf("tamper activated\n");
-    websocket_send_str(&s,"{\"TagNumberFrom\":\"00 12 4B 00 04 0E F3 88\",\"TagNumberTarget\":\"00 12 4B 00 04 0E F3 88\",\"Status\":\"Detached \",\"Location\":\"\", \"EquipmentSerialNumber\":\"\"}");
+    sprintf(sndTamper, "\{\"TagNumberFrom\":\"%s\",\"TagNumberTarget\":\"\",\"Status\":\"Detached\",\"Location\":\"\",\"EquipmentSerialNumber\":\"\"}", MACADDR);
+    printf(sndTamper);
+    printf("\n");
+    
+    websocket_send_str(&s,sndTamper);
     active ^= 1;
-    leds_toggle(LEDS_ALL);
+    leds_off(LEDS_ALL);
 
-    int i;
-    for(i = 0; i < RIMEADDR_SIZE - 1; i++) {
-      printf("%02x:", rimeaddr_node_addr.u8[i]);
-    }
-    printf("%02x\n", rimeaddr_node_addr.u8[i]);
   }
   PROCESS_END();
 }

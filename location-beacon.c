@@ -16,6 +16,8 @@
 #include "dev/button-sensor.h"
 #include "net/rime.h"
 #include "myneighbors.h"
+#include "packets.h"
+#include "node-id.h"
 
 #include <stdio.h>
 /*---------------------------------------------------------------------------*/
@@ -46,7 +48,8 @@ static struct myneighbor neighbors[MAX_NEIGHBORS];
 PROCESS(blink_process, "Blink process");
 PROCESS(websocket_example_process, "Websocket process");
 PROCESS(sensor_input_process, "Sensor input");
-AUTOSTART_PROCESSES(&websocket_example_process, &blink_process, &sensor_input_process);
+PROCESS(neighbor_process, "Neighbor process");
+AUTOSTART_PROCESSES(&websocket_example_process, &blink_process, &sensor_input_process, &neighbor_process);
 /*---------------------------------------------------------------------------*/
 
 /**
@@ -189,12 +192,64 @@ myneighbors_third_best(rimeaddr_t *neighbor)
 {
   return get_neighbor_rssi(3, neighbor);
 }
+
 /*---------------------------------------------------------------------------*/
 
 /**
  * Process threads
  */ 
-  
+/*---------------------------------------------------------------------------*/
+PROCESS_THREAD(neighbor_process, ev, data)
+{
+  static struct etimer et;
+
+  PROCESS_BEGIN();
+
+  /* Init neighbor library */
+  myneighbors_init();
+
+  while(1) {
+    struct report_msg msg;
+    rimeaddr_t addr;
+    int rssi;
+
+    /* Delay 1 second */
+    etimer_set(&et, CLOCK_SECOND);
+    PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
+
+    /* Randomly update a neighbor entry */
+    addr.u8[0] = 1 + (random_rand() % 6); /* [1-6] */
+    addr.u8[1] = 0;
+    rssi = (int) (random_rand() & 0xFF);
+    myneighbors_update(&addr, rssi);
+    printf("updated neighbor=%u.%u with rssi=%i\n", addr.u8[0], addr.u8[1], rssi);
+
+    /* Delay 1 more second */
+    etimer_set(&et, CLOCK_SECOND);
+    PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
+
+    /* Create report msg */
+    msg.type = TYPE_REPORT;
+
+    /* Extract top neighbors */
+    msg.neighbor1_rssi = myneighbors_best(&msg.neighbor1);
+    msg.neighbor2_rssi = myneighbors_second_best(&msg.neighbor2);
+    msg.neighbor3_rssi = myneighbors_third_best(&msg.neighbor3);
+
+    /* Print report */
+    printf("TOP 3 NEIGHBORS:\n");
+    printf("neighbor1=%d.%d %i\n",
+        msg.neighbor1.u8[0], msg.neighbor1.u8[1], msg.neighbor1_rssi);
+    printf("neighbor2=%d.%d %i\n",
+        msg.neighbor2.u8[0], msg.neighbor2.u8[1], msg.neighbor2_rssi);
+    printf("neighbor3=%d.%d %i\n",
+        msg.neighbor3.u8[0], msg.neighbor3.u8[1], msg.neighbor3_rssi);
+    leds_toggle(LEDS_BLUE);
+  }
+
+  PROCESS_END();
+}
+/*---------------------------------------------------------------------------*/  
  PROCESS_THREAD(websocket_example_process, ev, data)
 {
   static struct etimer et;
